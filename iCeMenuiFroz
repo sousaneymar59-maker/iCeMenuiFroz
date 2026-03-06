@@ -317,6 +317,18 @@ PlayerTab:CreateToggle({
 	end
 })
 
+PlayerTab:CreateSlider({
+	Name = "Fly Speed",
+	Range = {20,200},
+	Increment = 5,
+	Suffix = "Speed",
+	CurrentValue = 60,
+	Flag = "FlySpeedSlider",
+	Callback = function(Value)
+		FlySpeed = Value
+	end
+})
+
 -- TELEPORT PLAYER
 ServerTab:CreateInput({
 	Name="Teleport To Player",
