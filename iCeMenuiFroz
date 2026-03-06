@@ -214,45 +214,108 @@ RunService.Stepped:Connect(function()
 
 end)
 
--- FLY FIX
-local bodyVelocity
+-- FLY ESTÁVEL
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
-PlayerTab:CreateToggle({
-	Name="Fly",
-	CurrentValue=false,
-	Callback=function(Value)
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
 
-		flying = Value
+local Flying = false
+local FlySpeed = 60
 
-		local hrp = LocalPlayer.Character:WaitForChild("HumanoidRootPart")
+local BV
+local BG
 
-		if flying then
+local Keys = {
+	W = false,
+	A = false,
+	S = false,
+	D = false,
+	Space = false,
+	Shift = false
+}
 
-			bodyVelocity = Instance.new("BodyVelocity")
-			bodyVelocity.MaxForce = Vector3.new(1e9,1e9,1e9)
-			bodyVelocity.Parent = hrp
+-- CAPTURA TECLAS
+UIS.InputBegan:Connect(function(input, gpe)
+	if gpe then return end
 
-		else
+	if input.KeyCode == Enum.KeyCode.W then Keys.W = true end
+	if input.KeyCode == Enum.KeyCode.A then Keys.A = true end
+	if input.KeyCode == Enum.KeyCode.S then Keys.S = true end
+	if input.KeyCode == Enum.KeyCode.D then Keys.D = true end
+	if input.KeyCode == Enum.KeyCode.Space then Keys.Space = true end
+	if input.KeyCode == Enum.KeyCode.LeftShift then Keys.Shift = true end
+end)
 
-			if bodyVelocity then
-				bodyVelocity:Destroy()
-			end
-
-		end
-
-	end
-})
+UIS.InputEnded:Connect(function(input)
+	if input.KeyCode == Enum.KeyCode.W then Keys.W = false end
+	if input.KeyCode == Enum.KeyCode.A then Keys.A = false end
+	if input.KeyCode == Enum.KeyCode.S then Keys.S = false end
+	if input.KeyCode == Enum.KeyCode.D then Keys.D = false end
+	if input.KeyCode == Enum.KeyCode.Space then Keys.Space = false end
+	if input.KeyCode == Enum.KeyCode.LeftShift then Keys.Shift = false end
+end)
 
 RunService.RenderStepped:Connect(function()
 
-	if flying and bodyVelocity then
+	if not Flying then return end
 
-		bodyVelocity.Velocity =
-		workspace.CurrentCamera.CFrame.LookVector * 80
+	local cam = workspace.CurrentCamera
+	local move = Vector3.new()
 
+	if Keys.W then move = move + cam.CFrame.LookVector end
+	if Keys.S then move = move - cam.CFrame.LookVector end
+	if Keys.A then move = move - cam.CFrame.RightVector end
+	if Keys.D then move = move + cam.CFrame.RightVector end
+	if Keys.Space then move = move + Vector3.new(0,1,0) end
+	if Keys.Shift then move = move - Vector3.new(0,1,0) end
+
+	if move.Magnitude > 0 then
+		BV.Velocity = move.Unit * FlySpeed
+	else
+		BV.Velocity = Vector3.zero
 	end
 
+	BG.CFrame = cam.CFrame
 end)
+
+-- FUNÇÃO FLY
+local function ToggleFly(state)
+
+	Flying = state
+
+	if state then
+
+		Character = LocalPlayer.Character
+		HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+
+		BV = Instance.new("BodyVelocity")
+		BV.MaxForce = Vector3.new(9e9,9e9,9e9)
+		BV.Velocity = Vector3.zero
+		BV.Parent = HumanoidRootPart
+
+		BG = Instance.new("BodyGyro")
+		BG.MaxTorque = Vector3.new(9e9,9e9,9e9)
+		BG.CFrame = workspace.CurrentCamera.CFrame
+		BG.Parent = HumanoidRootPart
+
+	else
+
+		if BV then BV:Destroy() end
+		if BG then BG:Destroy() end
+
+	end
+end
+PlayerTab:CreateToggle({
+	Name = "Fly",
+	CurrentValue = false,
+	Callback = function(Value)
+		ToggleFly(Value)
+	end
+})
 
 -- TELEPORT PLAYER
 ServerTab:CreateInput({
