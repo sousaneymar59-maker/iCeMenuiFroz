@@ -1,0 +1,628 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+
+local flying = false
+local noclip = false
+
+-- ICE THEME
+local IceTheme = {
+
+	TextColor = Color3.fromRGB(30,40,55),
+
+	Background = Color3.fromRGB(245,250,255),
+	Topbar = Color3.fromRGB(235,245,255),
+	Shadow = Color3.fromRGB(200,220,240),
+
+	NotificationBackground = Color3.fromRGB(240,248,255),
+	NotificationActionsBackground = Color3.fromRGB(180,220,255),
+
+	TabBackground = Color3.fromRGB(225,240,255),
+	TabStroke = Color3.fromRGB(170,210,255),
+	TabBackgroundSelected = Color3.fromRGB(150,210,255),
+	TabTextColor = Color3.fromRGB(70,80,100),
+	SelectedTabTextColor = Color3.fromRGB(0,120,255),
+
+	ElementBackground = Color3.fromRGB(235,245,255),
+	ElementBackgroundHover = Color3.fromRGB(220,235,255),
+	SecondaryElementBackground = Color3.fromRGB(245,250,255),
+	ElementStroke = Color3.fromRGB(170,210,255),
+	SecondaryElementStroke = Color3.fromRGB(200,225,255),
+
+	SliderBackground = Color3.fromRGB(180,220,255),
+	SliderProgress = Color3.fromRGB(0,160,255),
+	SliderStroke = Color3.fromRGB(0,190,255),
+
+	ToggleBackground = Color3.fromRGB(230,240,255),
+	ToggleEnabled = Color3.fromRGB(0,170,255),
+	ToggleDisabled = Color3.fromRGB(180,180,180),
+	ToggleEnabledStroke = Color3.fromRGB(0,200,255),
+	ToggleDisabledStroke = Color3.fromRGB(150,150,150),
+	ToggleEnabledOuterStroke = Color3.fromRGB(0,170,255),
+	ToggleDisabledOuterStroke = Color3.fromRGB(180,180,180),
+
+	DropdownSelected = Color3.fromRGB(210,230,255),
+	DropdownUnselected = Color3.fromRGB(235,245,255),
+
+	InputBackground = Color3.fromRGB(245,250,255),
+	InputStroke = Color3.fromRGB(170,210,255),
+	PlaceholderColor = Color3.fromRGB(130,140,150)
+}
+
+-- WINDOW + KEY SYSTEM
+local Window = Rayfield:CreateWindow({
+	Name = "❄️ Ice Menu | by iFroz",
+	LoadingTitle = "Ice Menu",
+	LoadingSubtitle = "by iFroz",
+	Theme = IceTheme,
+	ToggleUIKeybind = "K",
+
+	ConfigurationSaving = {
+		Enabled = true,
+		FileName = "IceMenu"
+	},
+
+	KeySystem = true,
+	KeySettings = {
+		Title = "Ice Menu Key",
+		Subtitle = "Digite a Key",
+		Note = "Key: ICEFROZ2026",
+		FileName = "IceKey",
+		SaveKey = true,
+		GrabKeyFromSite = false,
+		Key = {"ICEFROZ2026"}
+	}
+})
+
+-- TABS
+local MainTab = Window:CreateTab("Main",4483362458)
+local PlayerTab = Window:CreateTab("Player",4483362458)
+local ServerTab = Window:CreateTab("Server",4483362458)
+
+MainTab:CreateSection("Ice Controls ❄️")
+
+-- NOTIFY
+MainTab:CreateButton({
+	Name="Show Notification",
+	Callback=function()
+
+		Rayfield:Notify({
+			Title="Ice Menu",
+			Content="Menu carregado!",
+			Duration=5
+		})
+
+	end
+})
+
+-- RESET
+MainTab:CreateButton({
+	Name="Reset Character",
+	Callback=function()
+
+		LocalPlayer.Character:BreakJoints()
+
+	end
+})
+
+-- HEAL
+PlayerTab:CreateButton({
+	Name="Heal",
+	Callback=function()
+
+		local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+		hum.Health = hum.MaxHealth
+
+	end
+})
+
+-- SIT
+PlayerTab:CreateButton({
+	Name="Sit",
+	Callback=function()
+
+		LocalPlayer.Character.Humanoid.Sit = true
+
+	end
+})
+
+-- GODMODE
+PlayerTab:CreateToggle({
+	Name="GodMode",
+	CurrentValue=false,
+	Callback=function(Value)
+
+		local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+
+		if Value then
+			hum.MaxHealth = math.huge
+			hum.Health = math.huge
+		else
+			hum.MaxHealth = 100
+			hum.Health = 100
+		end
+
+	end
+})
+
+-- INVISIBLE FIX
+PlayerTab:CreateToggle({
+	Name="Invisible",
+	CurrentValue=false,
+	Callback=function(Value)
+
+		for _,v in pairs(LocalPlayer.Character:GetDescendants()) do
+			if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then
+				v.Transparency = Value and 1 or 0
+			end
+		end
+
+	end
+})
+
+-- SPEED
+PlayerTab:CreateSlider({
+	Name="Speed",
+	Range={16,150},
+	Increment=1,
+	CurrentValue=16,
+	Callback=function(Value)
+
+		LocalPlayer.Character.Humanoid.WalkSpeed = Value
+
+	end
+})
+
+-- JUMP
+PlayerTab:CreateSlider({
+	Name="JumpPower",
+	Range={50,200},
+	Increment=5,
+	CurrentValue=50,
+	Callback=function(Value)
+
+		LocalPlayer.Character.Humanoid.JumpPower = Value
+
+	end
+})
+
+-- NOCLIP
+PlayerTab:CreateToggle({
+	Name="Noclip",
+	CurrentValue=false,
+	Callback=function(Value)
+
+		noclip = Value
+
+	end
+})
+
+RunService.Stepped:Connect(function()
+
+	if noclip then
+		for _,v in pairs(LocalPlayer.Character:GetDescendants()) do
+			if v:IsA("BasePart") then
+				v.CanCollide = false
+			end
+		end
+	end
+
+end)
+
+-- FLY FIX
+local bodyVelocity
+
+PlayerTab:CreateToggle({
+	Name="Fly",
+	CurrentValue=false,
+	Callback=function(Value)
+
+		flying = Value
+
+		local hrp = LocalPlayer.Character:WaitForChild("HumanoidRootPart")
+
+		if flying then
+
+			bodyVelocity = Instance.new("BodyVelocity")
+			bodyVelocity.MaxForce = Vector3.new(1e9,1e9,1e9)
+			bodyVelocity.Parent = hrp
+
+		else
+
+			if bodyVelocity then
+				bodyVelocity:Destroy()
+			end
+
+		end
+
+	end
+})
+
+RunService.RenderStepped:Connect(function()
+
+	if flying and bodyVelocity then
+
+		bodyVelocity.Velocity =
+		workspace.CurrentCamera.CFrame.LookVector * 80
+
+	end
+
+end)
+
+-- TELEPORT PLAYER
+ServerTab:CreateInput({
+	Name="Teleport To Player",
+	PlaceholderText="Digite o nome",
+	RemoveTextAfterFocusLost=false,
+	Callback=function(Text)
+
+		for _,plr in pairs(Players:GetPlayers()) do
+
+			if string.lower(plr.Name):sub(1,#Text) == string.lower(Text) then
+
+				LocalPlayer.Character.HumanoidRootPart.CFrame =
+				plr.Character.HumanoidRootPart.CFrame
+
+			end
+
+		end
+
+	end
+})
+-- SERVICES
+local Camera = workspace.CurrentCamera
+
+-- TAB VISUAL
+local VisualTab = Window:CreateTab("Visual", 4483362458)
+
+VisualTab:CreateSection("Aimbot")
+
+local Aimbot = false
+local TeamCheck = false
+local AimPart = "Head"
+local FOV = 120
+local Smoothness = 0.15
+
+local ShowFOV = false
+local RGBFOV = false
+local FOVColor = Color3.fromRGB(0,170,255)
+
+local ESPEnabled = false
+local BoxESP = false
+local LineESP = false
+
+local Camera = workspace.CurrentCamera
+
+-------------------------------------------------
+-- FOV CIRCLE
+-------------------------------------------------
+
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Visible = false
+FOVCircle.Radius = FOV
+FOVCircle.Thickness = 2
+FOVCircle.NumSides = 100
+FOVCircle.Filled = false
+FOVCircle.Color = FOVColor
+FOVCircle.Transparency = 1
+
+local hue = 0
+
+RunService.RenderStepped:Connect(function()
+
+	local mouse = UIS:GetMouseLocation()
+
+	FOVCircle.Position = mouse
+	FOVCircle.Radius = FOV
+	FOVCircle.Visible = ShowFOV
+
+	if RGBFOV then
+		hue = hue + 0.005
+		FOVCircle.Color = Color3.fromHSV(hue,1,1)
+	else
+		FOVCircle.Color = FOVColor
+	end
+
+end)
+
+-------------------------------------------------
+-- AIMBOT
+-------------------------------------------------
+
+function GetClosestPlayer()
+
+	local closest = nil
+	local distance = math.huge
+
+	for _,player in pairs(Players:GetPlayers()) do
+
+		if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild(AimPart) then
+
+			if TeamCheck and player.Team == LocalPlayer.Team then
+				continue
+			end
+
+			local pos, visible = Camera:WorldToViewportPoint(player.Character[AimPart].Position)
+
+			if visible then
+
+				local diff = (Vector2.new(pos.X,pos.Y) - UIS:GetMouseLocation()).Magnitude
+
+				if diff < distance and diff < FOV then
+					distance = diff
+					closest = player
+				end
+
+			end
+
+		end
+
+	end
+
+	return closest
+
+end
+
+RunService.RenderStepped:Connect(function()
+
+	if Aimbot then
+
+		local target = GetClosestPlayer()
+
+		if target and target.Character then
+
+			local part = target.Character:FindFirstChild(AimPart)
+
+			if part then
+
+				local newCF = CFrame.new(Camera.CFrame.Position, part.Position)
+
+				Camera.CFrame = Camera.CFrame:Lerp(newCF, Smoothness)
+
+			end
+
+		end
+
+	end
+
+end)
+
+-------------------------------------------------
+-- ESP SYSTEM FIX
+-------------------------------------------------
+
+local ESPObjects = {}
+
+function CreateESP(player)
+
+	if player == LocalPlayer then return end
+
+	local box = Drawing.new("Square")
+	box.Visible = false
+	box.Thickness = 2
+	box.Color = Color3.fromRGB(0,170,255)
+	box.Filled = false
+
+	local line = Drawing.new("Line")
+	line.Visible = false
+	line.Thickness = 2
+	line.Color = Color3.fromRGB(0,170,255)
+
+	ESPObjects[player] = {
+		Box = box,
+		Line = line
+	}
+
+end
+
+for _,p in pairs(Players:GetPlayers()) do
+	CreateESP(p)
+end
+
+Players.PlayerAdded:Connect(CreateESP)
+
+Players.PlayerRemoving:Connect(function(player)
+
+	if ESPObjects[player] then
+
+		ESPObjects[player].Box:Remove()
+		ESPObjects[player].Line:Remove()
+
+		ESPObjects[player] = nil
+
+	end
+
+end)
+
+RunService.RenderStepped:Connect(function()
+
+	for player,esp in pairs(ESPObjects) do
+
+		local char = player.Character
+
+		if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
+
+			local hrp = char.HumanoidRootPart
+			local hum = char.Humanoid
+
+			local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+
+			if onScreen and hum.Health > 0 and ESPEnabled then
+
+				local scale = (Camera:WorldToViewportPoint(hrp.Position + Vector3.new(0,3,0)).Y - pos.Y) * 2
+
+				local width = scale
+				local height = scale * 1.5
+
+				-- BOX
+				if BoxESP then
+					esp.Box.Size = Vector2.new(width,height)
+					esp.Box.Position = Vector2.new(pos.X - width/2, pos.Y - height/2)
+					esp.Box.Visible = true
+				else
+					esp.Box.Visible = false
+				end
+
+				-- LINE TRACER
+				if LineESP then
+
+					local screenCenter = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y)
+
+					esp.Line.From = screenCenter
+					esp.Line.To = Vector2.new(pos.X,pos.Y)
+					esp.Line.Visible = true
+
+				else
+					esp.Line.Visible = false
+				end
+
+			else
+
+				esp.Box.Visible = false
+				esp.Line.Visible = false
+
+			end
+
+		else
+
+			esp.Box.Visible = false
+			esp.Line.Visible = false
+
+		end
+
+	end
+
+end)
+-------------------------------------------------
+-- MENU OPTIONS
+-------------------------------------------------
+
+VisualTab:CreateToggle({
+	Name="Aimbot",
+	CurrentValue=false,
+	Callback=function(v)
+		Aimbot = v
+	end
+})
+
+VisualTab:CreateToggle({
+	Name="Team Check",
+	CurrentValue=false,
+	Callback=function(v)
+		TeamCheck = v
+	end
+})
+
+VisualTab:CreateDropdown({
+	Name="Aim Part",
+	Options={"Head","HumanoidRootPart","Torso"},
+	CurrentOption="Head",
+	Callback=function(v)
+		AimPart = v
+	end
+})
+
+VisualTab:CreateSlider({
+	Name="FOV Size",
+	Range={50,500},
+	Increment=5,
+	CurrentValue=120,
+	Callback=function(v)
+		FOV = v
+	end
+})
+
+VisualTab:CreateSlider({
+	Name="Aimbot Smooth",
+	Range={0.05,1},
+	Increment=0.05,
+	CurrentValue=0.15,
+	Callback=function(v)
+		Smoothness = v
+	end
+})
+
+VisualTab:CreateToggle({
+	Name="Show FOV",
+	CurrentValue=false,
+	Callback=function(v)
+		ShowFOV = v
+	end
+})
+
+VisualTab:CreateToggle({
+	Name="RGB FOV",
+	CurrentValue=false,
+	Callback=function(v)
+		RGBFOV = v
+	end
+})
+
+VisualTab:CreateColorPicker({
+	Name="FOV Color",
+	Color=Color3.fromRGB(0,170,255),
+	Callback=function(v)
+		FOVColor = v
+	end
+})
+
+VisualTab:CreateToggle({
+	Name="ESP",
+	CurrentValue=false,
+	Callback=function(v)
+		ESPEnabled = v
+	end
+})
+
+VisualTab:CreateToggle({
+	Name="Box ESP",
+	CurrentValue=false,
+	Callback=function(v)
+		BoxESP = v
+	end
+})
+
+VisualTab:CreateToggle({
+	Name="Line ESP",
+	CurrentValue=false,
+	Callback=function(v)
+		LineESP = v
+	end
+})
+
+MainTab:CreateButton({
+	Name = "Anti Kick",
+	Callback = function()
+
+		local mt = getrawmetatable(game)
+		local old = mt.__namecall
+		setreadonly(mt,false)
+
+		mt.__namecall = newcclosure(function(self,...)
+
+			local method = getnamecallmethod()
+			local args = {...}
+
+			if tostring(method) == "Kick" then
+				return
+			end
+
+			return old(self,...)
+
+		end)
+
+		setreadonly(mt,true)
+
+		Rayfield:Notify({
+			Title = "Ice Menu",
+			Content = "Anti Kick Ativado!",
+			Duration = 5
+		})
+
+	end
+})
