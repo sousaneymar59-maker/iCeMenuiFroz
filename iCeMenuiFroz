@@ -383,82 +383,57 @@ local Camera = workspace.CurrentCamera
 -- TAB VISUAL
 local VisualTab = Window:CreateTab("Visual", 4483362458)
 
-VisualTab:CreateSection("Aimbot")
-
-local Aimbot = false
-local TeamCheck = false
-local AimPart = "Head"
-local FOV = 120
-local Smoothness = 0.15
-
-local ShowFOV = false
-local RGBFOV = false
-local FOVColor = Color3.fromRGB(0,170,255)
-
-local ESPEnabled = false
-local BoxESP = false
-local LineESP = false
-
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--------------------------------------------------
--- FOV CIRCLE
--------------------------------------------------
+local AimEnabled = false
+local AimStrength = 50
+local TargetZone = "Head"
+local TeamCheck = true
+local VisibleCheck = true
 
-local FOVCircle = Drawing.new("Circle")
-FOVCircle.Visible = false
-FOVCircle.Radius = FOV
-FOVCircle.Thickness = 2
-FOVCircle.NumSides = 100
-FOVCircle.Filled = false
-FOVCircle.Color = FOVColor
-FOVCircle.Transparency = 1
-
-local hue = 0
-
-RunService.RenderStepped:Connect(function()
-
-	local mouse = UIS:GetMouseLocation()
-
-	FOVCircle.Position = mouse
-	FOVCircle.Radius = FOV
-	FOVCircle.Visible = ShowFOV
-
-	if RGBFOV then
-		hue = hue + 0.005
-		FOVCircle.Color = Color3.fromHSV(hue,1,1)
-	else
-		FOVCircle.Color = FOVColor
-	end
-
-end)
-
--------------------------------------------------
--- AIMBOT
--------------------------------------------------
-
-function GetClosestPlayer()
+local function getTarget()
 
 	local closest = nil
-	local distance = math.huge
+	local dist = math.huge
 
 	for _,player in pairs(Players:GetPlayers()) do
 
-		if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild(AimPart) then
+		if player ~= LocalPlayer and player.Character then
 
 			if TeamCheck and player.Team == LocalPlayer.Team then
 				continue
 			end
 
-			local pos, visible = Camera:WorldToViewportPoint(player.Character[AimPart].Position)
+			local char = player.Character
 
-			if visible then
+			local part
 
-				local diff = (Vector2.new(pos.X,pos.Y) - UIS:GetMouseLocation()).Magnitude
+			if TargetZone == "Head" then
+				part = char:FindFirstChild("Head")
+			elseif TargetZone == "Torso" then
+				part = char:FindFirstChild("HumanoidRootPart")
+			else
+				part = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
+			end
 
-				if diff < distance and diff < FOV then
-					distance = diff
-					closest = player
+			if part then
+
+				local screen,visible = Camera:WorldToViewportPoint(part.Position)
+
+				if visible then
+
+					local mouse = game:GetService("UserInputService"):GetMouseLocation()
+
+					local mag = (Vector2.new(screen.X,screen.Y) - mouse).Magnitude
+
+					if mag < dist then
+						dist = mag
+						closest = part
+					end
+
 				end
 
 			end
@@ -473,228 +448,162 @@ end
 
 RunService.RenderStepped:Connect(function()
 
-	if Aimbot then
+	if not AimEnabled then return end
 
-		local target = GetClosestPlayer()
+	local target = getTarget()
 
-		if target and target.Character then
+	if target then
 
-			local part = target.Character:FindFirstChild(AimPart)
+		local cf = Camera.CFrame
+		local new = CFrame.new(cf.Position,target.Position)
 
-			if part then
-
-				local newCF = CFrame.new(Camera.CFrame.Position, part.Position)
-
-				Camera.CFrame = Camera.CFrame:Lerp(newCF, Smoothness)
-
-			end
-
-		end
+		Camera.CFrame = cf:Lerp(new,AimStrength/100)
 
 	end
 
 end)
 
--------------------------------------------------
--- ESP SYSTEM FIX
--------------------------------------------------
+CombatTab:CreateSection("❄️ Aim Assist")
 
-local ESPObjects = {}
-
-function CreateESP(player)
-
-	if player == LocalPlayer then return end
-
-	local box = Drawing.new("Square")
-	box.Visible = false
-	box.Thickness = 2
-	box.Color = Color3.fromRGB(0,170,255)
-	box.Filled = false
-
-	local line = Drawing.new("Line")
-	line.Visible = false
-	line.Thickness = 2
-	line.Color = Color3.fromRGB(0,170,255)
-
-	ESPObjects[player] = {
-		Box = box,
-		Line = line
-	}
-
-end
-
-for _,p in pairs(Players:GetPlayers()) do
-	CreateESP(p)
-end
-
-Players.PlayerAdded:Connect(CreateESP)
-
-Players.PlayerRemoving:Connect(function(player)
-
-	if ESPObjects[player] then
-
-		ESPObjects[player].Box:Remove()
-		ESPObjects[player].Line:Remove()
-
-		ESPObjects[player] = nil
-
-	end
-
-end)
-
-RunService.RenderStepped:Connect(function()
-
-	for player,esp in pairs(ESPObjects) do
-
-		local char = player.Character
-
-		if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
-
-			local hrp = char.HumanoidRootPart
-			local hum = char.Humanoid
-
-			local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
-
-			if onScreen and hum.Health > 0 and ESPEnabled then
-
-				local scale = (Camera:WorldToViewportPoint(hrp.Position + Vector3.new(0,3,0)).Y - pos.Y) * 2
-
-				local width = scale
-				local height = scale * 1.5
-
-				-- BOX
-				if BoxESP then
-					esp.Box.Size = Vector2.new(width,height)
-					esp.Box.Position = Vector2.new(pos.X - width/2, pos.Y - height/2)
-					esp.Box.Visible = true
-				else
-					esp.Box.Visible = false
-				end
-
-				-- LINE TRACER
-				if LineESP then
-
-					local screenCenter = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y)
-
-					esp.Line.From = screenCenter
-					esp.Line.To = Vector2.new(pos.X,pos.Y)
-					esp.Line.Visible = true
-
-				else
-					esp.Line.Visible = false
-				end
-
-			else
-
-				esp.Box.Visible = false
-				esp.Line.Visible = false
-
-			end
-
-		else
-
-			esp.Box.Visible = false
-			esp.Line.Visible = false
-
-		end
-
-	end
-
-end)
--------------------------------------------------
--- MENU OPTIONS
--------------------------------------------------
-
-VisualTab:CreateToggle({
-	Name="Aimbot",
-	CurrentValue=false,
-	Callback=function(v)
-		Aimbot = v
+CombatTab:CreateToggle({
+	Name = "Aim Assist (Training Only)",
+	CurrentValue = false,
+	Callback = function(v)
+		AimEnabled = v
 	end
 })
 
-VisualTab:CreateToggle({
-	Name="Team Check",
-	CurrentValue=false,
-	Callback=function(v)
+CombatTab:CreateSlider({
+	Name = "Assist Strength",
+	Range = {0,100},
+	Increment = 1,
+	CurrentValue = 50,
+	Callback = function(v)
+		AimStrength = v
+	end
+})
+
+CombatTab:CreateDropdown({
+	Name = "Target Zone",
+	Options = {"Head","Torso","Closest Visible Part"},
+	CurrentOption = {"Head"},
+	Callback = function(opt)
+		TargetZone = opt[1]
+	end
+})
+
+CombatTab:CreateToggle({
+	Name = "Team Check",
+	CurrentValue = true,
+	Callback = function(v)
 		TeamCheck = v
 	end
 })
 
-VisualTab:CreateDropdown({
-	Name="Aim Part",
-	Options={"Head","HumanoidRootPart","Torso"},
-	CurrentOption="Head",
-	Callback=function(v)
-		AimPart = v
+CombatTab:CreateToggle({
+	Name = "Visibility Check",
+	CurrentValue = true,
+	Callback = function(v)
+		VisibleCheck = v
 	end
 })
 
-VisualTab:CreateSlider({
-	Name="FOV Size",
-	Range={50,500},
-	Increment=5,
-	CurrentValue=120,
-	Callback=function(v)
-		FOV = v
+local FOV = Drawing.new("Circle")
+FOV.Visible = false
+FOV.Radius = 200
+FOV.Thickness = 2
+FOV.Filled = false
+FOV.Color = Color3.fromRGB(0,200,255)
+
+RunService.RenderStepped:Connect(function()
+
+	local mouse = game:GetService("UserInputService"):GetMouseLocation()
+
+	FOV.Position = mouse
+
+end)
+
+CombatTab:CreateSection("FOV")
+
+CombatTab:CreateToggle({
+	Name = "Show FOV",
+	CurrentValue = false,
+	Callback = function(v)
+		FOV.Visible = v
 	end
 })
 
-VisualTab:CreateSlider({
-	Name="Aimbot Smooth",
-	Range={0.05,1},
-	Increment=0.05,
-	CurrentValue=0.15,
-	Callback=function(v)
-		Smoothness = v
+CombatTab:CreateSlider({
+	Name = "FOV Size",
+	Range = {50,600},
+	Increment = 10,
+	CurrentValue = 200,
+	Callback = function(v)
+		FOV.Radius = v
 	end
 })
+
+CombatTab:CreateSlider({
+	Name = "FOV Thickness",
+	Range = {1,6},
+	Increment = 1,
+	CurrentValue = 2,
+	Callback = function(v)
+		FOV.Thickness = v
+	end
+})
+
+local ESPEnabled = false
+
+RunService.RenderStepped:Connect(function()
+
+	if not ESPEnabled then return end
+
+	for _,player in pairs(Players:GetPlayers()) do
+
+		if player ~= LocalPlayer and player.Character then
+
+			local root = player.Character:FindFirstChild("HumanoidRootPart")
+
+			if root then
+
+				local line = Drawing.new("Line")
+
+				local pos,vis = Camera:WorldToViewportPoint(root.Position)
+
+				line.From = Vector2.new(Camera.ViewportSize.X/2,Camera.ViewportSize.Y)
+
+				line.To = Vector2.new(pos.X,pos.Y)
+
+				line.Color = Color3.fromRGB(0,200,255)
+
+				line.Thickness = 1
+
+				line.Visible = vis
+
+			end
+
+		end
+
+	end
+
+end)
 
 VisualTab:CreateToggle({
-	Name="Show FOV",
-	CurrentValue=false,
-	Callback=function(v)
-		ShowFOV = v
-	end
-})
-
-VisualTab:CreateToggle({
-	Name="RGB FOV",
-	CurrentValue=false,
-	Callback=function(v)
-		RGBFOV = v
-	end
-})
-
-VisualTab:CreateColorPicker({
-	Name="FOV Color",
-	Color=Color3.fromRGB(0,170,255),
-	Callback=function(v)
-		FOVColor = v
-	end
-})
-
-VisualTab:CreateToggle({
-	Name="ESP",
-	CurrentValue=false,
-	Callback=function(v)
+	Name = "ESP Line",
+	CurrentValue = false,
+	Callback = function(v)
 		ESPEnabled = v
 	end
 })
 
-VisualTab:CreateToggle({
-	Name="Box ESP",
-	CurrentValue=false,
-	Callback=function(v)
-		BoxESP = v
-	end
-})
+local TargetPlayerESP = ""
 
-VisualTab:CreateToggle({
-	Name="Line ESP",
-	CurrentValue=false,
-	Callback=function(v)
-		LineESP = v
+VisualTab:CreateInput({
+	Name = "ESP Player Nick",
+	PlaceholderText = "Digite o nick",
+	Callback = function(text)
+		TargetPlayerESP = text
 	end
 })
 
