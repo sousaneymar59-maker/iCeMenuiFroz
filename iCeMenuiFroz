@@ -220,11 +220,10 @@ local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
-local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
 
 local Flying = false
 local FlySpeed = 60
+local TurboSpeed = 120
 
 local BV
 local BG
@@ -234,73 +233,89 @@ local Keys = {
 	A = false,
 	S = false,
 	D = false,
-	Space = false,
-	Shift = false
+	Up = false,
+	Down = false
 }
 
--- CAPTURA TECLAS
-UIS.InputBegan:Connect(function(input, gpe)
+UIS.InputBegan:Connect(function(input,gpe)
+
 	if gpe then return end
 
 	if input.KeyCode == Enum.KeyCode.W then Keys.W = true end
 	if input.KeyCode == Enum.KeyCode.A then Keys.A = true end
 	if input.KeyCode == Enum.KeyCode.S then Keys.S = true end
 	if input.KeyCode == Enum.KeyCode.D then Keys.D = true end
-	if input.KeyCode == Enum.KeyCode.Space then Keys.Space = true end
-	if input.KeyCode == Enum.KeyCode.LeftShift then Keys.Shift = true end
+	if input.KeyCode == Enum.KeyCode.Space then Keys.Up = true end
+	if input.KeyCode == Enum.KeyCode.LeftControl then Keys.Down = true end
+
 end)
 
 UIS.InputEnded:Connect(function(input)
+
 	if input.KeyCode == Enum.KeyCode.W then Keys.W = false end
 	if input.KeyCode == Enum.KeyCode.A then Keys.A = false end
 	if input.KeyCode == Enum.KeyCode.S then Keys.S = false end
 	if input.KeyCode == Enum.KeyCode.D then Keys.D = false end
-	if input.KeyCode == Enum.KeyCode.Space then Keys.Space = false end
-	if input.KeyCode == Enum.KeyCode.LeftShift then Keys.Shift = false end
+	if input.KeyCode == Enum.KeyCode.Space then Keys.Up = false end
+	if input.KeyCode == Enum.KeyCode.LeftControl then Keys.Down = false end
+
 end)
 
 RunService.RenderStepped:Connect(function()
 
 	if not Flying then return end
 
+	local Character = LocalPlayer.Character
+	if not Character then return end
+
+	local HRP = Character:FindFirstChild("HumanoidRootPart")
+	if not HRP then return end
+
 	local cam = workspace.CurrentCamera
+
 	local move = Vector3.new()
 
 	if Keys.W then move = move + cam.CFrame.LookVector end
 	if Keys.S then move = move - cam.CFrame.LookVector end
 	if Keys.A then move = move - cam.CFrame.RightVector end
 	if Keys.D then move = move + cam.CFrame.RightVector end
-	if Keys.Space then move = move + Vector3.new(0,1,0) end
-	if Keys.Shift then move = move - Vector3.new(0,1,0) end
+	if Keys.Up then move = move + Vector3.new(0,1,0) end
+	if Keys.Down then move = move - Vector3.new(0,1,0) end
+
+	local speed = FlySpeed
+
+	if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then
+		speed = TurboSpeed
+	end
 
 	if move.Magnitude > 0 then
-		BV.Velocity = move.Unit * FlySpeed
+		BV.Velocity = move.Unit * speed
 	else
 		BV.Velocity = Vector3.zero
 	end
 
 	BG.CFrame = cam.CFrame
+
 end)
 
--- FUNÇÃO FLY
-local function ToggleFly(state)
+function ToggleFly(state)
+
+	local Character = LocalPlayer.Character
+	if not Character then return end
+
+	local HRP = Character:FindFirstChild("HumanoidRootPart")
 
 	Flying = state
 
 	if state then
 
-		Character = LocalPlayer.Character
-		HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
-
 		BV = Instance.new("BodyVelocity")
 		BV.MaxForce = Vector3.new(9e9,9e9,9e9)
-		BV.Velocity = Vector3.zero
-		BV.Parent = HumanoidRootPart
+		BV.Parent = HRP
 
 		BG = Instance.new("BodyGyro")
 		BG.MaxTorque = Vector3.new(9e9,9e9,9e9)
-		BG.CFrame = workspace.CurrentCamera.CFrame
-		BG.Parent = HumanoidRootPart
+		BG.Parent = HRP
 
 	else
 
@@ -308,9 +323,12 @@ local function ToggleFly(state)
 		if BG then BG:Destroy() end
 
 	end
+
 end
+PlayerTab:CreateSection("❄️ Super Fly")
+
 PlayerTab:CreateToggle({
-	Name = "Fly",
+	Name = "Super Fly",
 	CurrentValue = false,
 	Callback = function(Value)
 		ToggleFly(Value)
@@ -323,9 +341,19 @@ PlayerTab:CreateSlider({
 	Increment = 5,
 	Suffix = "Speed",
 	CurrentValue = 60,
-	Flag = "FlySpeedSlider",
 	Callback = function(Value)
 		FlySpeed = Value
+	end
+})
+
+PlayerTab:CreateSlider({
+	Name = "Turbo Speed",
+	Range = {100,400},
+	Increment = 10,
+	Suffix = "Turbo",
+	CurrentValue = 120,
+	Callback = function(Value)
+		TurboSpeed = Value
 	end
 })
 
