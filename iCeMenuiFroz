@@ -110,24 +110,50 @@ MainTab:CreateButton({
 	end
 })
 
--- HEAL
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+
+local LocalPlayer = Players.LocalPlayer
+
+local HealKey = Enum.KeyCode.H
+
+local function HealPlayer()
+
+	local char = LocalPlayer.Character
+	if not char then return end
+
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if not hum then return end
+
+	hum.Health = hum.MaxHealth
+
+end
+
+-- Tecla para curar
+UIS.InputBegan:Connect(function(input,gpe)
+
+	if gpe then return end
+
+	if input.KeyCode == HealKey then
+		HealPlayer()
+	end
+
+end)
+
 PlayerTab:CreateButton({
-	Name="Heal",
-	Callback=function()
-
-		local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-		hum.Health = hum.MaxHealth
-
+	Name = "Heal (Full HP)",
+	Callback = function()
+		HealPlayer()
 	end
 })
 
--- SIT
-PlayerTab:CreateButton({
-	Name="Sit",
-	Callback=function()
-
-		LocalPlayer.Character.Humanoid.Sit = true
-
+PlayerTab:CreateKeybind({
+	Name = "Heal Key",
+	CurrentKeybind = "H",
+	HoldToInteract = false,
+	Flag = "HealKey",
+	Callback = function()
+		HealPlayer()
 	end
 })
 
@@ -382,7 +408,7 @@ local Camera = workspace.CurrentCamera
 
 -- TAB VISUAL
 local VisualTab = Window:CreateTab("Visual", 4483362458)
-......................................................................................................................
+
 MainTab:CreateButton({
 	Name = "Anti Kick",
 	Callback = function()
@@ -579,6 +605,366 @@ VisualTab:CreateInput({
 
 			end
 
+		end
+
+	end
+})
+
+local CombatTab = Window:CreateTab("Combat", 4483362458)
+
+-- SERVICES
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- CONFIG
+local AimEnabled = false
+local AssistStrength = 40
+local TargetZone = "Head"
+local TeamCheck = true
+local VisibilityCheck = true
+local TrainingMode = true -- mude para false se quiser bloquear fora do treino
+
+-- FOV
+local ShowFOV = false
+local FOVSize = 200
+local FOVThickness = 2
+local FOVColor = Color3.fromRGB(0,200,255)
+local FOVMode = "Static"
+local CycleDuration = 2
+local SmoothGradient = true
+
+-- CROSSHAIR
+local CrosshairEnabled = false
+local CrosshairSize = 8
+local CrosshairThickness = 2
+local CrosshairColor = Color3.fromRGB(255,255,255)
+
+-- DRAWING OBJECTS
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Visible = false
+FOVCircle.Filled = false
+
+local Crosshair1 = Drawing.new("Line")
+local Crosshair2 = Drawing.new("Line")
+
+-- FUNÇÃO VISIBILIDADE
+local function isVisible(part)
+	if not VisibilityCheck then return true end
+	
+	local origin = Camera.CFrame.Position
+	local direction = (part.Position - origin)
+	
+	local params = RaycastParams.new()
+	params.FilterDescendantsInstances = {LocalPlayer.Character}
+	params.FilterType = Enum.RaycastFilterType.Blacklist
+	
+	local result = workspace:Raycast(origin, direction, params)
+	
+	if result and result.Instance and not result.Instance:IsDescendantOf(part.Parent) then
+		return false
+	end
+	
+	return true
+end
+
+-- PEGAR ALVO
+local function getTarget()
+
+	local closest = nil
+	local shortest = FOVSize
+	
+	for _,player in pairs(Players:GetPlayers()) do
+		
+		if player ~= LocalPlayer and player.Character then
+			
+			if TeamCheck and player.Team == LocalPlayer.Team then
+				continue
+			end
+			
+			local part
+			
+			if TargetZone == "Head" then
+				part = player.Character:FindFirstChild("Head")
+			elseif TargetZone == "Torso" then
+				part = player.Character:FindFirstChild("HumanoidRootPart")
+			else
+				part = player.Character:FindFirstChild("Head") or player.Character:FindFirstChild("HumanoidRootPart")
+			end
+			
+			if part and IceVisibleCheck(part) then
+				
+				local screen,visible = Camera:WorldToViewportPoint(part.Position)
+				
+				if visible then
+					
+					local mouse = UIS:GetMouseLocation()
+					local dist = (Vector2.new(screen.X,screen.Y) - mouse).Magnitude
+					
+					if dist < shortest then
+						shortest = dist
+						closest = part
+					end
+					
+				end
+				
+			end
+			
+		end
+		
+	end
+	
+	return closest
+end
+
+-- LOOP PRINCIPAL
+RunService.RenderStepped:Connect(function()
+
+	local mouse = UIS:GetMouseLocation()
+
+	-- FOV
+	FOVCircle.Visible = ShowFOV
+	FOVCircle.Radius = FOVSize
+	FOVCircle.Thickness = FOVThickness
+	FOVCircle.Position = mouse
+
+	if FOVMode == "Static" then
+		FOVCircle.Color = FOVColor
+	end
+
+	-- CROSSHAIR
+	if CrosshairEnabled then
+		
+		Crosshair1.Visible = true
+		Crosshair2.Visible = true
+		
+		Crosshair1.Color = CrosshairColor
+		Crosshair2.Color = CrosshairColor
+		
+		Crosshair1.Thickness = CrosshairThickness
+		Crosshair2.Thickness = CrosshairThickness
+		
+		Crosshair1.From = Vector2.new(mouse.X - CrosshairSize, mouse.Y)
+		Crosshair1.To = Vector2.new(mouse.X + CrosshairSize, mouse.Y)
+		
+		Crosshair2.From = Vector2.new(mouse.X, mouse.Y - CrosshairSize)
+		Crosshair2.To = Vector2.new(mouse.X, mouse.Y + CrosshairSize)
+		
+	else
+		
+		Crosshair1.Visible = false
+		Crosshair2.Visible = false
+		
+	end
+
+	-- AIM ASSIST
+	if AimEnabled and TrainingMode then
+		
+		local target = getTarget()
+		
+		if target then
+			
+			local cf = Camera.CFrame
+			local new = CFrame.new(cf.Position,target.Position)
+			
+			Camera.CFrame = cf:Lerp(new,AssistStrength/100)
+			
+		end
+		
+	end
+
+end)
+
+CombatTab:CreateSection("❄️ Aim Assist")
+
+CombatTab:CreateToggle({
+	Name = "Aim Assist (Training Only)",
+	CurrentValue = false,
+	Callback = function(v)
+		AimEnabled = v
+	end
+})
+
+CombatTab:CreateSlider({
+	Name = "Assist Strength",
+	Range = {0,100},
+	Increment = 1,
+	CurrentValue = 40,
+	Callback = function(v)
+		AssistStrength = v
+	end
+})
+
+CombatTab:CreateDropdown({
+	Name = "Target Zone",
+	Options = {"Head","Torso","Closest Visible Part"},
+	CurrentOption = {"Head"},
+	Callback = function(opt)
+		TargetZone = opt[1]
+	end
+})
+
+CombatTab:CreateToggle({
+	Name = "Team Check",
+	CurrentValue = true,
+	Callback = function(v)
+		TeamCheck = v
+	end
+})
+
+CombatTab:CreateToggle({
+	Name = "Visibility Check",
+	CurrentValue = true,
+	Callback = function(v)
+		VisibilityCheck = v
+	end
+})
+
+CombatTab:CreateSection("FOV Circle")
+
+CombatTab:CreateToggle({
+	Name = "Show FOV Circle",
+	CurrentValue = false,
+	Callback = function(v)
+		ShowFOV = v
+	end
+})
+
+CombatTab:CreateSlider({
+	Name = "FOV Size",
+	Range = {50,600},
+	Increment = 10,
+	CurrentValue = 200,
+	Callback = function(v)
+		FOVSize = v
+	end
+})
+
+CombatTab:CreateSlider({
+	Name = "FOV Thickness",
+	Range = {1,6},
+	Increment = 1,
+	CurrentValue = 2,
+	Callback = function(v)
+		FOVThickness = v
+	end
+})
+
+CombatTab:CreateColorPicker({
+	Name = "FOV Color",
+	Color = Color3.fromRGB(0,200,255),
+	Callback = function(v)
+		FOVColor = v
+	end
+})
+
+CombatTab:CreateSection("Crosshair")
+
+CombatTab:CreateToggle({
+	Name = "Crosshair",
+	CurrentValue = false,
+	Callback = function(v)
+		CrosshairEnabled = v
+	end
+})
+
+CombatTab:CreateSlider({
+	Name = "Crosshair Size",
+	Range = {4,20},
+	Increment = 1,
+	CurrentValue = 8,
+	Callback = function(v)
+		CrosshairSize = v
+	end
+})
+
+CombatTab:CreateSlider({
+	Name = "Crosshair Thickness",
+	Range = {1,5},
+	Increment = 1,
+	CurrentValue = 2,
+	Callback = function(v)
+		CrosshairThickness = v
+	end
+})
+
+CombatTab:CreateColorPicker({
+	Name = "Crosshair Color",
+	Color = Color3.fromRGB(255,255,255),
+	Callback = function(v)
+		CrosshairColor = v
+	end
+})
+
+-- VISIBILITY CHECK MELHORADO
+function IceVisibleCheck(part)
+
+	local Camera = workspace.CurrentCamera
+	local LocalPlayer = game.Players.LocalPlayer
+
+	local origin = Camera.CFrame.Position
+	local direction = (part.Position - origin)
+
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Blacklist
+	params.FilterDescendantsInstances = {LocalPlayer.Character}
+
+	local result = workspace:Raycast(origin, direction, params)
+
+	if result then
+		if result.Instance:IsDescendantOf(part.Parent) then
+			return true
+		else
+			return false
+		end
+	end
+
+	return true
+end
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local GodMode = false
+
+local function ApplyGod()
+
+	local char = LocalPlayer.Character
+	if not char then return end
+	
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if not hum then return end
+	
+	hum:GetPropertyChangedSignal("Health"):Connect(function()
+
+		if GodMode and hum.Health < hum.MaxHealth then
+			hum.Health = hum.MaxHealth
+		end
+
+	end)
+
+end
+
+LocalPlayer.CharacterAdded:Connect(function()
+	task.wait(1)
+	if GodMode then
+		ApplyGod()
+	end
+end)
+
+VisualTab:CreateToggle({
+	Name = "God Mode (Infinite Health)",
+	CurrentValue = false,
+	Flag = "GodMode",
+	Callback = function(Value)
+
+		GodMode = Value
+
+		if Value then
+			ApplyGod()
 		end
 
 	end
